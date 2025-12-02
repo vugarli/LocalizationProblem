@@ -141,7 +141,7 @@ func TestBearingDifference(t *testing.T) {
 
 func TestDistanceToWay(t *testing.T) {
 
-	m, grid := generateMap(0, 1, 100,
+	m, grid := GenerateMap(0, 1, 100,
 		ToDecimalCoord(46, 0, 0, North),
 		ToDecimalCoord(7, 0, 0, East))
 
@@ -181,7 +181,7 @@ func TestDistanceToWay(t *testing.T) {
 
 func TestGetWayLength(t *testing.T) {
 	blockSize := 250.0
-	m, grid := generateMap(0, 1, blockSize,
+	m, grid := GenerateMap(0, 1, blockSize,
 		ToDecimalCoord(46, 0, 0, North),
 		ToDecimalCoord(7, 0, 0, East))
 
@@ -193,7 +193,7 @@ func TestGetWayLength(t *testing.T) {
 }
 
 func TestGetWayHeading(t *testing.T) {
-	m, grid := generateMap(0, 1, 100,
+	m, grid := GenerateMap(0, 1, 100,
 		ToDecimalCoord(46, 0, 0, North),
 		ToDecimalCoord(7, 0, 0, East))
 
@@ -204,7 +204,7 @@ func TestGetWayHeading(t *testing.T) {
 }
 
 func TestSpatialIndex(t *testing.T) {
-	m, _ := generateMap(3, 3, 100,
+	m, _ := GenerateMap(3, 3, 100,
 		ToDecimalCoord(46, 0, 0, North),
 		ToDecimalCoord(7, 0, 0, East))
 
@@ -241,11 +241,11 @@ func TestSpatialIndex(t *testing.T) {
 }
 
 func TestFindNearestWayWithIndex(t *testing.T) {
-	m, grid := generateMap(2, 2, 200,
+	m, grid := GenerateMap(2, 2, 200,
 		ToDecimalCoord(46, 0, 0, North),
 		ToDecimalCoord(7, 0, 0, East))
 
-	m.Ways = generateAllWays(m, grid, 2, 2)
+	//m.Ways = GenerateAllWays(m, grid, 2, 2)
 	index := m.BuildSpatialIndex(0.001)
 
 	originNode := m.Nodes[grid["0,0"]]
@@ -262,11 +262,11 @@ func TestFindNearestWayWithIndex(t *testing.T) {
 }
 
 func TestEnhancedMap(t *testing.T) {
-	m, grid := generateMap(2, 2, 150,
+	m, grid := GenerateMap(2, 2, 150,
 		ToDecimalCoord(46, 0, 0, North),
 		ToDecimalCoord(7, 0, 0, East))
 
-	m.Ways = generateAllWays(m, grid, 2, 2)
+	//m.Ways = GenerateAllWays(m, grid, 2, 2)
 	em := NewEnhancedMap(m)
 
 	t.Run("builds indexes", func(t *testing.T) {
@@ -313,7 +313,7 @@ func TestEnhancedMap(t *testing.T) {
 }
 
 func TestCalculateBounds(t *testing.T) {
-	m, grid := generateMap(2, 2, 200,
+	m, grid := GenerateMap(2, 2, 200,
 		ToDecimalCoord(46, 0, 0, North),
 		ToDecimalCoord(7, 0, 0, East))
 
@@ -358,55 +358,12 @@ func generateHorizontalWays(m *Map, grid map[string]osm.NodeID, row, cols int) [
 	return ways
 }
 
-func generateAllWays(m *Map, grid map[string]osm.NodeID, rows, cols int) []*osm.Way {
-	ways := make([]*osm.Way, 0)
-	wayID := osm.WayID(1)
-
-	// horizontal ways
-	for row := 0; row <= rows; row++ {
-		for col := 0; col < cols; col++ {
-			n1 := grid[fmt.Sprintf("%d,%d", row, col)]
-			n2 := grid[fmt.Sprintf("%d,%d", row, col+1)]
-
-			way := &osm.Way{
-				ID: wayID,
-				Nodes: []osm.WayNode{
-					{ID: n1},
-					{ID: n2},
-				},
-			}
-			ways = append(ways, way)
-			wayID++
-		}
-	}
-
-	// vertical ways
-	for col := 0; col <= cols; col++ {
-		for row := 0; row < rows; row++ {
-			n1 := grid[fmt.Sprintf("%d,%d", row, col)]
-			n2 := grid[fmt.Sprintf("%d,%d", row+1, col)]
-
-			way := &osm.Way{
-				ID: wayID,
-				Nodes: []osm.WayNode{
-					{ID: n1},
-					{ID: n2},
-				},
-			}
-			ways = append(ways, way)
-			wayID++
-		}
-	}
-
-	return ways
-}
-
 func BenchmarkFindNearestWay(b *testing.B) {
-	m, grid := generateMap(10, 10, 100,
+	m, grid := GenerateMap(10, 10, 100,
 		ToDecimalCoord(46, 0, 0, North),
 		ToDecimalCoord(7, 0, 0, East))
 
-	m.Ways = generateAllWays(m, grid, 10, 10)
+	//m.Ways = GenerateAllWays(m, grid, 10, 10)
 	index := m.BuildSpatialIndex(0.001)
 
 	testNode := m.Nodes[grid["5,5"]]

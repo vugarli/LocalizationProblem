@@ -6,6 +6,10 @@ import (
 	"roboticsproject/osmprocessing"
 )
 
+type VOReading struct {
+	Distance, Angle float64
+}
+
 type Particle struct {
 	Lat     float64
 	Lon     float64
@@ -125,4 +129,24 @@ func (pf *ParticleFilter) InitParticlesOnWays() {
 	}
 
 	fmt.Printf("Initialized %d particles across %d roads\n", particleIdx, waysProcessed)
+}
+
+func (pf *ParticleFilter) MoveParticles(voReading VOReading) {
+	for i := range pf.Particles {
+
+		pf.Particles[i].Heading += voReading.Angle
+		pf.Particles[i].Heading = osmprocessing.NormalizeBearing(pf.Particles[i].Heading)
+
+		if voReading.Distance > 0 {
+			newLat, newLon := osmprocessing.CalculateDestinationPoint(
+				osmprocessing.MakeCoordinateDecimal(pf.Particles[i].Lat, osmprocessing.Latitude),
+				osmprocessing.MakeCoordinateDecimal(pf.Particles[i].Lon, osmprocessing.Longitude),
+				osmprocessing.BearingDecimal(pf.Particles[i].Heading),
+				voReading.Distance,
+			)
+
+			pf.Particles[i].Lat = newLat.DecimalDegree
+			pf.Particles[i].Lon = newLon.DecimalDegree
+		}
+	}
 }

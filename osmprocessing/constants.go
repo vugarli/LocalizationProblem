@@ -35,7 +35,7 @@ type CoordinateDecimal struct {
 
 type BearingDecimal float64
 
-func makeCoordinateDecimal(decimalDegree float64, coordType int) CoordinateDecimal {
+func MakeCoordinateDecimal(decimalDegree float64, coordType int) CoordinateDecimal {
 
 	if coordType == Longitude {
 		decimalDegree = normalizeLon(decimalDegree)

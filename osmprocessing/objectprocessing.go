@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/grab/gosm"
-	"github.com/paulmach/osm"
-	"github.com/paulmach/osm/osmpbf"
 	"log"
 	"math"
 	"os"
 	"sort"
+
+	"github.com/grab/gosm"
+	"github.com/paulmach/osm"
+	"github.com/paulmach/osm/osmpbf"
 )
 
 type Map struct {
@@ -67,8 +68,8 @@ func CalculateDestinationPoint(latOrgn, longOrgn CoordinateDecimal, bearing Bear
 		longDir = West
 	}
 
-	lat := makeCoordinateDecimal(latDestDeg, latDir)
-	long := makeCoordinateDecimal(longDestDeg, longDir)
+	lat := MakeCoordinateDecimal(latDestDeg, latDir)
+	long := MakeCoordinateDecimal(longDestDeg, longDir)
 
 	return lat, long
 }
@@ -368,4 +369,122 @@ func splitAtIntersections(ways []*osm.Way) []*osm.Way {
 	}
 
 	return out
+}
+
+// func GenerateAllWays(m *Map, grid map[string]osm.NodeID, rows, cols int) []*osm.Way {
+// 	ways := make([]*osm.Way, 0)
+// 	wayID := osm.WayID(1)
+
+// 	// horizontal ways
+// 	for row := 0; row <= rows; row++ {
+// 		for col := 0; col < cols; col++ {
+// 			n1 := grid[fmt.Sprintf("%d,%d", row, col)]
+// 			n2 := grid[fmt.Sprintf("%d,%d", row, col+1)]
+
+// 			way := &osm.Way{
+// 				ID: wayID,
+// 				Nodes: []osm.WayNode{
+// 					{ID: n1},
+// 					{ID: n2},
+// 				},
+// 			}
+// 			ways = append(ways, way)
+// 			wayID++
+// 		}
+// 	}
+
+// 	// vertical ways
+// 	for col := 0; col <= cols; col++ {
+// 		for row := 0; row < rows; row++ {
+// 			n1 := grid[fmt.Sprintf("%d,%d", row, col)]
+// 			n2 := grid[fmt.Sprintf("%d,%d", row+1, col)]
+
+// 			way := &osm.Way{
+// 				ID: wayID,
+// 				Nodes: []osm.WayNode{
+// 					{ID: n1},
+// 					{ID: n2},
+// 				},
+// 			}
+// 			ways = append(ways, way)
+// 			wayID++
+// 		}
+// 	}
+
+//		return ways
+//	}
+func GenerateMap(row, column int, blockSize float64, latOrg, longOrg CoordinateDecimal) (*Map, map[string]osm.NodeID) {
+	m := &Map{
+		Nodes: make(map[osm.NodeID]*osm.Node),
+		Ways:  make([]*osm.Way, 0),
+	}
+
+	grid := make(map[string]osm.NodeID)
+	var nodeID osm.NodeID = 0
+
+	for r := 0; r <= row; r++ {
+		for c := 0; c <= column; c++ {
+
+			nlat, nlong := CalculateDestinationPoint(latOrg, longOrg, BearingDecimal(0), blockSize*float64(r))
+
+			elat, elong := CalculateDestinationPoint(nlat, nlong, BearingDecimal(90), blockSize*float64(c))
+
+			m.Nodes[nodeID] = &osm.Node{
+				ID:  nodeID,
+				Lat: elat.DecimalDegree,
+				Lon: elong.DecimalDegree,
+			}
+
+			grid[fmt.Sprintf("%d,%d", r, c)] = nodeID
+			nodeID++
+		}
+	}
+
+	var wayID osm.WayID = 1
+
+	for r := 0; r <= row; r++ {
+		for c := 0; c < column; c++ { // Note: c < column (not <=)
+			node1ID := grid[fmt.Sprintf("%d,%d", r, c)]
+			node2ID := grid[fmt.Sprintf("%d,%d", r, c+1)]
+
+			way := &osm.Way{
+				ID: wayID,
+				Tags: osm.Tags{
+					{Key: "highway", Value: "residential"},
+					{Key: "name", Value: fmt.Sprintf("Street %d", r)},
+				},
+				Nodes: []osm.WayNode{
+					{ID: node1ID},
+					{ID: node2ID},
+				},
+			}
+
+			m.Ways = append(m.Ways, way)
+			wayID++
+		}
+	}
+
+	for c := 0; c <= column; c++ {
+		for r := 0; r < row; r++ { // Note: r < row (not <=)
+			node1ID := grid[fmt.Sprintf("%d,%d", r, c)]
+			node2ID := grid[fmt.Sprintf("%d,%d", r+1, c)]
+
+			way := &osm.Way{
+				ID: wayID,
+				Tags: osm.Tags{
+					{Key: "highway", Value: "residential"},
+					{Key: "name", Value: fmt.Sprintf("Avenue %d", c)},
+				},
+				Nodes: []osm.WayNode{
+					{ID: node1ID},
+					{ID: node2ID},
+				},
+			}
+
+			m.Ways = append(m.Ways, way)
+			wayID++
+		}
+	}
+
+	return m, grid
 }
