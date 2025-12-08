@@ -2,6 +2,7 @@ package particlefilter
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"roboticsproject/osmprocessing"
 )
@@ -129,6 +130,92 @@ func (pf *ParticleFilter) InitParticlesOnWays() {
 	}
 
 	fmt.Printf("Initialized %d particles across %d roads\n", particleIdx, waysProcessed)
+}
+
+func gaussianProbability(mean float64, sigma float64, x float64) float64 {
+	//	P(x) = (1 / √(2πσ²)) × exp(-(x-μ)² / (2σ²))
+	exponent := -((x - mean) * (x - mean)) / (2 * sigma * sigma)
+	return math.Exp(exponent)
+}
+
+func (pf *ParticleFilter) gaussianNoise(mean, stdDev float64) float64 {
+	u1 := pf.rng.Float64()
+	u2 := pf.rng.Float64()
+
+	for u1 == 0 {
+		u1 = pf.rng.Float64()
+	}
+
+	z := math.Sqrt(-2*math.Log(u1)) * math.Cos(2*math.Pi*u2)
+
+	return mean + stdDev*z
+}
+
+func (pf *ParticleFilter) ParticleUpdateWeigh() {
+
+	totalWeigh := 0.0
+
+	for i, particle := range pf.Particles {
+
+		nearestWay, distance := pf.Map.FindNearestWayFast(particle.Lat, particle.Lon, 50.0)
+
+		if nearestWay == nil {
+			pf.Particles[i].Weight = 0.001
+			totalWeigh += pf.Particles[i].Weight
+			continue
+		}
+
+		probabilityBasedOnDistance := gaussianProbability(0, 2.0, distance)
+
+		wayBearing := osmprocessing.GetWayHeadingAtPoint(nearestWay, pf.Particles[i].Lat, pf.Particles[i].Lon, pf.Map.Nodes)
+		bearingDiff := math.Abs(osmprocessing.BearingDifference(particle.Heading, wayBearing))
+		probabilityBasedOnBearing := gaussianProbability(0, 15, bearingDiff)
+
+		pf.Particles[i].Weight = probabilityBasedOnBearing * probabilityBasedOnDistance
+
+		if pf.Particles[i].Weight < 0.001 {
+			pf.Particles[i].Weight = 0.001
+		}
+		totalWeigh += pf.Particles[i].Weight
+	}
+	if totalWeigh > 0 {
+		for i := range pf.Particles {
+			pf.Particles[i].Weight /= totalWeigh
+		}
+	}
+
+}
+
+// Systematic resampling https://people.isy.liu.se/rt/schon/Publications/HolSG2006.pdf
+func (pf *ParticleFilter) Resample() {
+	newParticles := make([]Particle, len(pf.Particles))
+
+	cumWeights := make([]float64, len(pf.Particles))
+	cumWeights[0] = pf.Particles[0].Weight
+
+	for i := 1; i < len(pf.Particles); i++ {
+		cumWeights[i] = cumWeights[i-1] + pf.Particles[i].Weight
+	}
+
+	step := 1.0 / float64(len(pf.Particles))
+	start := pf.rng.Float64() * step
+
+	idx := 0
+	for i := 0; i < len(pf.Particles); i++ {
+		target := start + float64(i)*step
+		for idx < len(pf.Particles)-1 && cumWeights[idx] < target {
+			idx++
+		}
+
+		newParticles[i] = pf.Particles[idx]
+		newParticles[i].Lat += pf.gaussianNoise(0, 0.00001)
+		newParticles[i].Lon += pf.gaussianNoise(0, 0.00001)
+		newParticles[i].Heading += pf.gaussianNoise(0, 1.0)
+		newParticles[i].Heading = osmprocessing.NormalizeBearing(newParticles[i].Heading)
+		newParticles[i].Weight = 1.0 / float64(len(pf.Particles))
+	}
+
+	pf.Particles = newParticles
 }
 
 func (pf *ParticleFilter) MoveParticles(voReading VOReading) {

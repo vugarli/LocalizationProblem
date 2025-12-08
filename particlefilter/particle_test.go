@@ -82,7 +82,7 @@ func TestMoveParticles(t *testing.T) {
 		}
 
 		if movedNorth < 45 {
-			t.Errorf("Only %d/50 particles moved north expected >45", movedNorth)
+			t.Errorf("only %d/50 particles moved north expected > 45", movedNorth)
 		}
 	})
 
